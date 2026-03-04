@@ -1,5 +1,42 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## GVKSS HR Portal
+
+Role-based HR portal with separate dashboards for **Admin**, **HR**, **Team Lead**, and **Employee**.
+
+### Running the app
+
+1. **Start the API** (json-server on port 3001):
+   ```bash
+   npm run server
+   ```
+
+2. **Start the dev server**:
+   ```bash
+   npm run dev
+   ```
+
+3. Open [http://localhost:3000](http://localhost:3000) and go to **Login**.
+
+### Test credentials (password: `test123`)
+
+| Role       | Email             |
+|-----------|-------------------|
+| Admin     | admin@test.com    |
+| HR        | hr@test.com       |
+| Team Lead | teamlead@test.com |
+| Employee  | employee@test.com |
+
+### Dashboard pages
+
+- **/dashboard** — Redirects to your role’s dashboard after login.
+- **/dashboard/admin** — Admin only.
+- **/dashboard/hr** — HR only.
+- **/dashboard/team-lead** — Team lead only.
+- **/dashboard/employee** — Employee only.
+
+---
+
 ## Getting Started
 
 First, run the development server:
