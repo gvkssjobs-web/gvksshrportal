@@ -1,19 +1,71 @@
 {
-
-"contacts": [
+  "contacts": [
     {
-        "id": "1",
-        "name": "John Doe",
-        "email": "john@test.com",
-        "userId": "1"
+      "id": "1",
+      "name": "John Doe",
+      "email": "john@test.com",
+      "userId": "1"
     }
-],
-"users": [
+  ],
+  "users": [
     {
-        "id": "1",
-        "name": "user1",
-        "email": "user1@gmail.com",
-        "password": "123456"
+      "id": "1",
+      "name": "user1",
+      "email": "user1@gmail.com",
+      "password": "123456",
+      "role": "admin",
+      "departmentId": "3"
+    },
+    {
+      "id": "7",
+      "name": "Test Admin",
+      "email": "admin@test.com",
+      "password": "test123",
+      "role": "admin",
+      "departmentId": "3"
+    },
+    {
+      "id": "11",
+      "name": "abhilash",
+      "email": "yellenkiabhilash2104@gmail.com",
+      "password": "1234567890",
+      "status": "active",
+      "departmentId": "4",
+      "role": "team-lead"
     }
-]
+  ],
+  "departments": [
+    {
+      "id": "3",
+      "name": "HR"
+    },
+    {
+      "id": "4",
+      "name": "front-end"
+    }
+  ],
+  "leaveRequests": [
+    {
+      "id": "1",
+      "userId": null,
+      "userName": "Alice Smith",
+      "type": "casual",
+      "startDate": "2025-03-10",
+      "endDate": "2025-03-12",
+      "reason": "Family event",
+      "status": "rejected",
+      "createdAt": "2025-03-01T10:00:00Z"
+    },
+    {
+      "id": "2",
+      "userId": null,
+      "userName": "Bob Wilson",
+      "type": "sick",
+      "startDate": "2025-03-05",
+      "endDate": "2025-03-06",
+      "reason": "Medical",
+      "status": "approved",
+      "createdAt": "2025-03-02T09:00:00Z"
+    }
+  ]
 }

@@ -1,10 +1,8 @@
+import { redirect } from "next/navigation";
+import { requireAuth } from "../_lib/auth";
 
-const Admin = () => {
-  return (
-    <div>
-      admin page
-    </div>
-  )
+/** Redirect /admin to role-specific dashboard. */
+export default async function AdminPage() {
+  await requireAuth();
+  redirect("/dashboard");
 }
-
-export default Admin
