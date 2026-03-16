@@ -10,19 +10,28 @@ interface Props {
   userId: string;
   currentDepartmentId: string | null;
   currentRole: UserRole;
+  currentJoiningDate: string | null;
+  currentRelievingDate: string | null;
   departments: Department[];
+  /** Only admin can edit joining/relieving dates; others see read-only */
+  canEditDates?: boolean;
 }
 
 export default function EditTeamMemberForm({
   userId,
   currentDepartmentId,
   currentRole,
+  currentJoiningDate,
+  currentRelievingDate,
   departments,
+  canEditDates = false,
 }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [departmentId, setDepartmentId] = useState(currentDepartmentId ?? "");
   const [role, setRole] = useState<UserRole>(currentRole);
+  const [joiningDate, setJoiningDate] = useState(currentJoiningDate ?? "");
+  const [relievingDate, setRelievingDate] = useState(currentRelievingDate ?? "");
   const [error, setError] = useState<string | null>(null);
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -33,7 +42,9 @@ export default function EditTeamMemberForm({
         await updateUserTeamAndRole(
           userId,
           departmentId ? departmentId : null,
-          role
+          role,
+          canEditDates ? joiningDate || null : undefined,
+          canEditDates ? relievingDate || null : undefined
         );
         router.push("/admin/employees");
         router.refresh();
@@ -75,6 +86,32 @@ export default function EditTeamMemberForm({
           <option value="hr">HR</option>
           <option value="admin">Admin</option>
         </select>
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-slate-700">Joining date</label>
+        {canEditDates ? (
+          <input
+            type="date"
+            value={joiningDate}
+            onChange={(e) => setJoiningDate(e.target.value)}
+            className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+          />
+        ) : (
+          <p className="mt-1 text-slate-700">{currentJoiningDate || "—"}</p>
+        )}
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-slate-700">Relieving date</label>
+        {canEditDates ? (
+          <input
+            type="date"
+            value={relievingDate}
+            onChange={(e) => setRelievingDate(e.target.value)}
+            className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+          />
+        ) : (
+          <p className="mt-1 text-slate-700">{currentRelievingDate || "—"}</p>
+        )}
       </div>
       <button
         type="submit"

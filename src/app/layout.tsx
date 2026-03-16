@@ -17,11 +17,15 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="flex flex-col min-h-screen">
-        <Navbar />
+        <div className="print:hidden">
+          <Navbar />
+        </div>
         <main className="container mx-auto py-4 px-8 flex-1">
         {children}
         </main>
-        <Fotter/>
+        <div className="print:hidden">
+          <Fotter/>
+        </div>
         
       </body>
     </html>

@@ -8,10 +8,22 @@ export default function LeaveForm() {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [dateError, setDateError] = useState<string | null>(null);
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
+    setDateError(null);
+    const formEl = e.currentTarget;
+    const startDate = (formEl.elements.namedItem("startDate") as HTMLInputElement)
+      ?.value;
+    const endDate = (formEl.elements.namedItem("endDate") as HTMLInputElement)
+      ?.value;
+
+    if (startDate && endDate && startDate > endDate) {
+      setDateError("End date must be on or after start date.");
+      return;
+    }
     const formData = new FormData(e.currentTarget);
     startTransition(async () => {
       try {
@@ -30,9 +42,9 @@ export default function LeaveForm() {
       className="space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
     >
       <h2 className="font-semibold text-slate-800">Apply for leave</h2>
-      {error && (
+      {(error || dateError) && (
         <p className="rounded bg-red-50 px-3 py-2 text-sm text-red-700">
-          {error}
+          {dateError || error}
         </p>
       )}
       <div>

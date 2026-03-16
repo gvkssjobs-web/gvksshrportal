@@ -1,0 +1,146 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Department {
+  id   String @id @default(cuid())
+  name String
+  users User[]
+}
+
+model User {
+  id             String         @id @default(cuid())
+  email          String         @unique
+  name           String
+  password       String
+  firstName      String?
+  middleName     String?
+  lastName       String?
+  dateOfBirth    DateTime?
+  marriageStatus String?
+  photo          String?
+  aadharNumber   String?
+  bankAccount    String?
+  panNumber      String?
+  passportNumber String?
+  dlNumber       String?
+  addressHNo     String?
+  city           String?
+  state          String?
+  pincode        String?
+  phoneNumber    String?
+  emergencyContactNumber String?
+  emergencyContactWhose  String?
+  emergencyContactRelation String?
+  native         String?
+  fatherName     String?
+  fatherOccupation String?
+  motherName     String?
+  motherOccupation String?
+  motherTongue   String?
+  qualification  String?
+  experience     String?
+  previousDesignation String?
+  currentDesignation  String?
+  role           String         @default("employee")
+  status         String         @default("active")
+  departmentId   String?
+  department     Department?    @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  joiningDate    DateTime?
+  relievingDate  DateTime?
+  leaveRequests  LeaveRequest[]
+  approvedLeaves LeaveRequest[] @relation("LeaveApprovedBy")
+  attendances    Attendance[]
+  salaries       Salary[]
+  payrolls       PayrollRecord[]
+  resignations   Resignation[]
+  educations     Education[]
+
+  @@map("users")
+}
+
+model Education {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  level           String   // 10th, 12th, BTech, etc.
+  collegeName     String?
+  rollNumber      String?
+  yearPassout     String?
+  marksScored     String?
+  marksOutOf      String?
+  cgpaScored      String?
+  cgpaOutOf       String?
+  currentBacklogs String?
+  historyBacklogs String?
+  breaksInAcademics String?
+}
+
+model Resignation {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userName    String
+  explanation String
+  status      String   @default("pending") // pending | approved | rejected
+  createdAt   DateTime @default(now())
+  approvedById String?
+  approvedAt   DateTime?
+
+  @@map("resignations")
+}
+
+model LeaveRequest {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userName     String
+  type         String   // sick | casual | annual | unpaid
+  startDate    String
+  endDate      String
+  reason       String   @default("")
+  status       String   @default("pending") // pending | approved | rejected
+  createdAt    DateTime @default(now())
+  approvedById String?
+  approvedBy   User?    @relation("LeaveApprovedBy", fields: [approvedById], references: [id])
+  approvedAt   DateTime?
+  rejectedAt   DateTime?
+
+  @@map("leave_requests")
+}
+
+model Attendance {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date      DateTime
+  checkIn   DateTime?
+  checkOut  DateTime?
+  status    String   @default("present") // present | absent | leave
+  createdAt DateTime @default(now())
+}
+
+model Salary {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  baseAmount   Float
+  effectiveFrom DateTime
+}
+
+model PayrollRecord {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  periodYear Int
+  periodMonth Int
+  gross      Float
+  net        Float
+  createdAt  DateTime @default(now())
+}

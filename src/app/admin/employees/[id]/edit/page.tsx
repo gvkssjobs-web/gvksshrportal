@@ -1,30 +1,23 @@
 import { notFound } from "next/navigation";
 import { requireRole } from "../../../../_lib/auth";
-import { getDepartments } from "../../../../actions/hr";
-import axios from "axios";
+import { getDepartments, getUserById } from "../../../../actions/hr";
 import Link from "next/link";
 import EditTeamMemberForm from "../../../../_components/EditTeamMemberForm";
-
-const API_URL = "http://localhost:3001";
 
 export default async function EditTeamMemberPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const session = await requireRole(["admin"]);
+  await requireRole(["admin"]);
   const { id } = await params;
 
-  const [userRes, deptRes] = await Promise.all([
-    axios.get(`${API_URL}/users/${id}`).catch(() => ({ data: null })),
-    axios.get<{ id: string; name: string }[]>(`${API_URL}/departments`),
+  const [user, departments] = await Promise.all([
+    getUserById(id),
+    getDepartments(),
   ]);
-  const user = userRes.data;
-  const departments = deptRes.data;
 
-  if (!user || user.status === "pending") {
-    notFound();
-  }
+  if (!user) notFound();
 
   return (
     <div className="mx-auto max-w-lg space-y-6">
@@ -48,7 +41,10 @@ export default async function EditTeamMemberPage({
           userId={user.id}
           currentDepartmentId={user.departmentId ?? null}
           currentRole={user.role ?? "employee"}
+          currentJoiningDate={user.joiningDate ?? null}
+          currentRelievingDate={user.relievingDate ?? null}
           departments={departments}
+          canEditDates={true}
         />
       </div>
     </div>

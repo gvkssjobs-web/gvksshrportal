@@ -40,6 +40,12 @@ export default async function EmployeesPage() {
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">
                 Role
               </th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">
+                Joining date
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">
+                Relieving date
+              </th>
               {session.role === "admin" && (
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">
                   Actions
@@ -73,6 +79,12 @@ export default async function EmployeesPage() {
                   >
                     {emp.role ?? "employee"}
                   </span>
+                </td>
+                <td className="whitespace-nowrap px-4 py-3 text-slate-600">
+                  {emp.joiningDate ?? "—"}
+                </td>
+                <td className="whitespace-nowrap px-4 py-3 text-slate-600">
+                  {emp.relievingDate ?? "—"}
                 </td>
                 {session.role === "admin" && (
                   <td className="whitespace-nowrap px-4 py-3">

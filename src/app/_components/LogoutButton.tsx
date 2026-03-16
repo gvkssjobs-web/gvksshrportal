@@ -16,7 +16,15 @@ const LogoutButton = () => {
     }
   };
 
-  return <button onClick={handleButton}>Logout</button>;
+  return (
+    <button
+      type="button"
+      onClick={handleButton}
+      className="rounded-lg border border-slate-500 bg-slate-600 px-3 py-1.5 text-sm font-medium text-slate-50 shadow-sm hover:bg-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-300"
+    >
+      Logout
+    </button>
+  );
 };
 
 export default LogoutButton;

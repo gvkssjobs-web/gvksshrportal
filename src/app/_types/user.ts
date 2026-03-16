@@ -9,6 +9,8 @@ export interface UserType {
   role?: UserRole;
   departmentId?: string;
   status?: UserStatus;
+  joiningDate?: string;   // ISO date string
+  relievingDate?: string; // ISO date string
 }
 
 export interface Department {

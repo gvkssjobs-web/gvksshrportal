@@ -1,8 +1,9 @@
 "use server";
 
-import axios from "axios";
 import { revalidatePath } from "next/cache";
-import {
+import { prisma } from "../_lib/db";
+import { getSession } from "../_lib/session";
+import type {
   LeaveRequest,
   LeaveStatus,
   LeaveType,
@@ -10,13 +11,10 @@ import {
   UserRole,
   Department,
 } from "../_types/user";
-import { getSession } from "../_lib/session";
-
-const API_URL = "http://localhost:3001";
 
 export async function getDepartments(): Promise<Department[]> {
-  const { data } = await axios.get<Department[]>(`${API_URL}/departments`);
-  return data;
+  const list = await prisma.department.findMany({ orderBy: { name: "asc" } });
+  return list.map((d) => ({ id: d.id, name: d.name }));
 }
 
 export interface DepartmentWithStats extends Department {
@@ -24,161 +22,188 @@ export interface DepartmentWithStats extends Department {
   teamLeadName: string | null;
 }
 
-/** Departments with member count and team lead name (admin). */
 export async function getDepartmentsWithStats(): Promise<DepartmentWithStats[]> {
   const session = await getSession();
   if (session?.role !== "admin") return [];
-  const [deptRes, usersRes] = await Promise.all([
-    axios.get<Department[]>(`${API_URL}/departments`),
-    axios.get<UserType[]>(`${API_URL}/users`),
-  ]);
-  const users = usersRes.data as (UserType & { status?: string })[];
-  const activeUsers = users.filter((u) => u.status !== "pending");
-  return deptRes.data.map((d) => {
-    const members = activeUsers.filter((u) => u.departmentId === d.id);
+
+  const departments = await prisma.department.findMany({
+    orderBy: { name: "asc" },
+    include: {
+      users: {
+        where: { status: { not: "pending" } },
+      },
+    },
+  });
+
+  return departments.map((d) => {
+    const members = d.users;
     const lead = members.find((u) => u.role === "team-lead");
     return {
-      ...d,
+      id: d.id,
+      name: d.name,
       memberCount: members.length,
       teamLeadName: lead ? lead.name : null,
     };
   });
 }
 
-/** Admin: create a new team (department). */
 export async function createDepartment(name: string) {
   const session = await getSession();
   if (session?.role !== "admin") throw new Error("Only admin can create teams.");
 
-  const { data: existing } = await axios.get<Department[]>(`${API_URL}/departments`);
-  const nextId = String(
-    Math.max(0, ...existing.map((d) => parseInt(d.id, 10))) + 1
-  );
-  await axios.post(`${API_URL}/departments`, { id: nextId, name: name.trim() });
+  await prisma.department.create({ data: { name: name.trim() } });
   revalidatePath("/admin/teams");
   revalidatePath("/dashboard/admin");
 }
 
-/** Admin: update team name. */
 export async function updateDepartment(id: string, name: string) {
   const session = await getSession();
   if (session?.role !== "admin") throw new Error("Only admin can edit teams.");
 
-  const { data: dept } = await axios.get<Department>(`${API_URL}/departments/${id}`);
-  if (!dept) throw new Error("Team not found.");
-  await axios.patch(`${API_URL}/departments/${id}`, { ...dept, name: name.trim() });
+  await prisma.department.update({
+    where: { id },
+    data: { name: name.trim() },
+  });
   revalidatePath("/admin/teams");
   revalidatePath("/dashboard/admin");
 }
 
-/** Admin: delete team. Fails if any users are in the team. */
 export async function deleteDepartment(id: string) {
   const session = await getSession();
   if (session?.role !== "admin") throw new Error("Only admin can delete teams.");
 
-  const { data: users } = await axios.get<UserType[]>(`${API_URL}/users`);
-  const inTeam = (users as UserType[]).filter((u) => u.departmentId === id);
-  if (inTeam.length > 0) {
+  const count = await prisma.user.count({ where: { departmentId: id } });
+  if (count > 0) {
     throw new Error(
-      `Cannot delete: ${inTeam.length} member(s) are in this team. Reassign or remove them first.`
+      `Cannot delete: ${count} member(s) are in this team. Reassign or remove them first.`
     );
   }
-  await axios.delete(`${API_URL}/departments/${id}`);
+  await prisma.department.delete({ where: { id } });
   revalidatePath("/admin/teams");
   revalidatePath("/dashboard/admin");
 }
 
-/** Admin: update a user's team (department) and role (e.g. set as team-lead). */
 export async function updateUserTeamAndRole(
   userId: string,
   departmentId: string | null,
-  role: UserRole
+  role: UserRole,
+  joiningDate?: string | null,
+  relievingDate?: string | null
 ) {
   const session = await getSession();
   if (session?.role !== "admin") throw new Error("Only admin can edit team members.");
 
-  const { data: user } = await axios.get<UserType & { password?: string }>(
-    `${API_URL}/users/${userId}`
-  );
+  const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user || user.status === "pending")
     throw new Error("User not found or pending approval.");
 
-  await axios.patch(`${API_URL}/users/${userId}`, {
-    ...user,
-    departmentId: departmentId || null,
+  const data: { departmentId: string | null; role: UserRole; joiningDate?: Date | null; relievingDate?: Date | null } = {
+    departmentId,
     role,
+  };
+  // Only admin may update joining/relieving dates; no other role can modify them
+  if (session.role === "admin") {
+    if (joiningDate !== undefined) data.joiningDate = joiningDate ? new Date(joiningDate) : null;
+    if (relievingDate !== undefined) data.relievingDate = relievingDate ? new Date(relievingDate) : null;
+  }
+
+  await prisma.user.update({
+    where: { id: userId },
+    data,
   });
   revalidatePath("/admin/employees");
   revalidatePath("/admin/employees/" + userId);
   revalidatePath("/dashboard/admin");
 }
 
-/** Admin: delete an employee (user). Cannot delete yourself. */
 export async function deleteEmployee(userId: string) {
   const session = await getSession();
   if (session?.role !== "admin") throw new Error("Only admin can delete employees.");
+  if (session.id === userId) throw new Error("You cannot delete your own account.");
 
-  if (session.id === userId) {
-    throw new Error("You cannot delete your own account.");
-  }
-
-  const { data: user } = await axios.get<UserType>(`${API_URL}/users/${userId}`);
+  const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) throw new Error("User not found.");
 
-  await axios.delete(`${API_URL}/users/${userId}`);
+  await prisma.user.delete({ where: { id: userId } });
   revalidatePath("/admin/employees");
   revalidatePath("/dashboard/admin");
 }
 
+function toUserType(u: {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  departmentId: string | null;
+  joiningDate?: Date | null;
+  relievingDate?: Date | null;
+}): UserType {
+  return {
+    id: u.id,
+    name: u.name,
+    email: u.email,
+    role: u.role as UserRole,
+    departmentId: u.departmentId ?? undefined,
+    joiningDate: u.joiningDate?.toISOString().slice(0, 10),
+    relievingDate: u.relievingDate?.toISOString().slice(0, 10),
+  };
+}
+
 function withDepartmentNames(
-  users: UserType[],
-  departments: Department[]
+  users: {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+    departmentId: string | null;
+    joiningDate?: Date | null;
+    relievingDate?: Date | null;
+    department: { name: string } | null;
+  }[],
+  _departments?: Department[]
 ): (UserType & { departmentName?: string })[] {
-  const deptMap = Object.fromEntries(departments.map((d) => [d.id, d.name]));
   return users.map((u) => ({
-    ...u,
-    departmentName: u.departmentId ? deptMap[u.departmentId] : "—",
+    ...toUserType(u),
+    departmentName: u.department?.name ?? "—",
   }));
 }
 
 export async function getEmployees(): Promise<
   (UserType & { departmentName?: string })[]
 > {
-  const [usersRes, deptRes] = await Promise.all([
-    axios.get<UserType[]>(`${API_URL}/users`),
-    axios.get<Department[]>(`${API_URL}/departments`),
-  ]);
-  const active = (usersRes.data as (UserType & { status?: string })[]).filter(
-    (u) => u.status !== "pending"
-  );
-  return withDepartmentNames(active, deptRes.data as Department[]);
+  const users = await prisma.user.findMany({
+    where: { status: { not: "pending" } },
+    include: { department: true },
+    orderBy: { name: "asc" },
+  });
+  return withDepartmentNames(users);
 }
 
-/** Team members in the same department (for team-lead). */
 export async function getTeamMembers(): Promise<
   (UserType & { departmentName?: string })[]
 > {
   const session = await getSession();
   if (!session?.departmentId) return [];
-  const [usersRes, deptRes] = await Promise.all([
-    axios.get<UserType[]>(`${API_URL}/users?departmentId=${session.departmentId}`),
-    axios.get<Department[]>(`${API_URL}/departments`),
-  ]);
-  const active = (usersRes.data as (UserType & { status?: string })[]).filter(
-    (u) => u.status !== "pending"
-  );
-  return withDepartmentNames(active, deptRes.data as Department[]);
+
+  const users = await prisma.user.findMany({
+    where: { departmentId: session.departmentId, status: { not: "pending" } },
+    include: { department: true },
+    orderBy: { name: "asc" },
+  });
+  return withDepartmentNames(users);
 }
 
-/** Pending registration requests (admin only). */
 export async function getPendingRegistrations(): Promise<UserType[]> {
   const session = await getSession();
   if (session?.role !== "admin") return [];
-  const { data } = await axios.get<UserType[]>(`${API_URL}/users?status=pending`);
-  return data as UserType[];
+
+  const list = await prisma.user.findMany({
+    where: { status: "pending" },
+    orderBy: { name: "asc" },
+  });
+  return list.map(toUserType);
 }
 
-/** Admin approves a registration: assign department, role and activate. */
 export async function approveRegistration(
   userId: string,
   departmentId: string,
@@ -187,74 +212,91 @@ export async function approveRegistration(
   const session = await getSession();
   if (session?.role !== "admin") throw new Error("Only admin can approve registrations.");
 
-  const { data: user } = await axios.get<UserType & { password?: string }>(
-    `${API_URL}/users/${userId}`
-  );
+  const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user || user.status !== "pending")
     throw new Error("User not found or already processed.");
 
-  await axios.patch(`${API_URL}/users/${userId}`, {
-    ...user,
-    departmentId: departmentId || null,
-    role,
-    status: "active",
+  await prisma.user.update({
+    where: { id: userId },
+    data: { departmentId, role, status: "active", joiningDate: new Date() },
   });
   revalidatePath("/admin/pending");
   revalidatePath("/dashboard/admin");
 }
 
-/** Admin rejects a registration (removes the pending user). */
 export async function rejectRegistration(userId: string) {
   const session = await getSession();
   if (session?.role !== "admin") throw new Error("Only admin can reject registrations.");
 
-  const { data: user } = await axios.get<UserType>(`${API_URL}/users/${userId}`);
+  const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user || user.status !== "pending")
     throw new Error("User not found or already processed.");
 
-  await axios.delete(`${API_URL}/users/${userId}`);
+  await prisma.user.delete({ where: { id: userId } });
   revalidatePath("/admin/pending");
   revalidatePath("/dashboard/admin");
 }
 
-/** Leave requests from users in the same department (for team-lead). */
+function toLeaveRequest(l: {
+  id: string;
+  userId: string;
+  userName: string;
+  type: string;
+  startDate: string;
+  endDate: string;
+  reason: string;
+  status: string;
+  createdAt: Date;
+}): LeaveRequest {
+  return {
+    id: l.id,
+    userId: l.userId,
+    userName: l.userName,
+    type: l.type as LeaveType,
+    startDate: l.startDate,
+    endDate: l.endDate,
+    reason: l.reason,
+    status: l.status as LeaveStatus,
+    createdAt: l.createdAt.toISOString(),
+  };
+}
+
 export async function getTeamLeaveRequests(): Promise<LeaveRequest[]> {
   const session = await getSession();
   if (!session?.departmentId) return [];
-  const [leavesRes, usersRes] = await Promise.all([
-    axios.get<LeaveRequest[]>(`${API_URL}/leaveRequests`),
-    axios.get<UserType[]>(`${API_URL}/users`),
-  ]);
-  const userIdsInDept = new Set(
-    (usersRes.data as UserType[])
-      .filter((u) => u.departmentId === session.departmentId)
-      .map((u) => u.id)
-  );
-  const teamLeaves = leavesRes.data.filter((l) => userIdsInDept.has(l.userId));
-  return teamLeaves.sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  );
+
+  const usersInDept = await prisma.user.findMany({
+    where: { departmentId: session.departmentId },
+    select: { id: true },
+  });
+  const userIds = new Set(usersInDept.map((u) => u.id));
+
+  const list = await prisma.leaveRequest.findMany({
+    where: { userId: { in: [...userIds] } },
+    orderBy: { createdAt: "desc" },
+  });
+  return list.map(toLeaveRequest);
 }
 
 export async function getMyLeaves(): Promise<LeaveRequest[]> {
   const session = await getSession();
   if (!session?.id) return [];
-  const { data } = await axios.get<LeaveRequest[]>(
-    `${API_URL}/leaveRequests?userId=${session.id}`
-  );
-  return data.sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  );
+
+  const list = await prisma.leaveRequest.findMany({
+    where: { userId: session.id },
+    orderBy: { createdAt: "desc" },
+  });
+  return list.map(toLeaveRequest);
 }
 
 export async function getAllLeaves(): Promise<LeaveRequest[]> {
   const session = await getSession();
   if (!session) return [];
   if (session.role === "hr" || session.role === "admin") {
-    const { data } = await axios.get<LeaveRequest[]>(`${API_URL}/leaveRequests`);
-    return data.sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
+    const list = await prisma.leaveRequest.findMany({
+      orderBy: { createdAt: "desc" },
+    });
+    return list.map(toLeaveRequest);
   }
   if (session.role === "team-lead") return getTeamLeaveRequests();
   return [];
@@ -271,55 +313,80 @@ export async function createLeave(formData: FormData) {
 
   if (!startDate || !endDate) throw new Error("Start and end date required");
 
-  const { data: existing } = await axios.get<LeaveRequest[]>(
-    `${API_URL}/leaveRequests`
-  );
-  const nextId = String(
-    Math.max(0, ...existing.map((l) => parseInt(l.id, 10))) + 1
-  );
-
-  await axios.post(`${API_URL}/leaveRequests`, {
-    id: nextId,
-    userId: session.id,
-    userName: session.name,
-    type,
-    startDate,
-    endDate,
-    reason,
-    status: "pending",
-    createdAt: new Date().toISOString(),
+  await prisma.leaveRequest.create({
+    data: {
+      userId: session.id,
+      userName: session.name,
+      type,
+      startDate,
+      endDate,
+      reason,
+      status: "pending",
+    },
   });
   revalidatePath("/admin");
   revalidatePath("/admin/leave");
 }
 
-export async function updateLeaveStatus(
-  leaveId: string,
-  status: LeaveStatus
-) {
+export async function updateLeaveStatus(leaveId: string, status: LeaveStatus) {
   const session = await getSession();
   if (!session) throw new Error("Unauthorized");
   const canHrAdmin = session.role === "hr" || session.role === "admin";
-  const canTeamLead =
-    session.role === "team-lead" && session.departmentId;
+  const canTeamLead = session.role === "team-lead" && session.departmentId;
   if (!canHrAdmin && !canTeamLead) throw new Error("Unauthorized");
 
-  const { data: leave } = await axios.get<LeaveRequest>(
-    `${API_URL}/leaveRequests/${leaveId}`
-  );
+  const leave = await prisma.leaveRequest.findUnique({ where: { id: leaveId } });
+  if (!leave) throw new Error("Leave request not found.");
+
   if (session.role === "team-lead") {
-    const { data: leaveUser } = await axios.get<UserType[]>(
-      `${API_URL}/users?id=${leave.userId}`
-    );
-    const user = leaveUser[0];
+    const user = await prisma.user.findUnique({
+      where: { id: leave.userId },
+    });
     if (!user || user.departmentId !== session.departmentId)
       throw new Error("You can only approve leave for your team.");
   }
-  await axios.patch(`${API_URL}/leaveRequests/${leaveId}`, {
-    ...leave,
+
+  const updateData: any = {
     status,
+  };
+
+  const now = new Date();
+  if (status === "approved") {
+    updateData.approvedById = session.id;
+    updateData.approvedAt = now;
+    updateData.rejectedAt = null;
+  } else if (status === "rejected") {
+    updateData.approvedById = session.id;
+    updateData.rejectedAt = now;
+  }
+
+  await prisma.leaveRequest.update({
+    where: { id: leaveId },
+    data: updateData,
   });
   revalidatePath("/admin");
   revalidatePath("/admin/leave");
   revalidatePath("/admin/approve");
 }
+
+/** Get a single user by id (for admin edit page). */
+export async function getUserById(userId: string): Promise<UserType | null> {
+  const session = await getSession();
+  if (session?.role !== "admin") return null;
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    include: { department: true },
+  });
+  if (!user || user.status === "pending") return null;
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role as UserRole,
+    departmentId: user.departmentId ?? undefined,
+    joiningDate: user.joiningDate?.toISOString().slice(0, 10),
+    relievingDate: user.relievingDate?.toISOString().slice(0, 10),
+  };
+}
+

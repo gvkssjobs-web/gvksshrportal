@@ -15,25 +15,9 @@ export default function LoginPage() {
         </p>
       </div>
 
-      <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-        <h2 className="mb-3 text-sm font-semibold text-slate-700">
-          Test credentials (password: test123)
-        </h2>
-        <ul className="space-y-2 text-sm text-slate-600">
-          <li>
-            <strong>Admin:</strong> admin@test.com
-          </li>
-          <li>
-            <strong>HR:</strong> hr@test.com
-          </li>
-          <li>
-            <strong>Team Lead:</strong> teamlead@test.com
-          </li>
-          <li>
-            <strong>Employee:</strong> employee@test.com
-          </li>
-        </ul>
-      </div>
+      <p className="text-center text-xs text-slate-500">
+        First time? Run <code className="rounded bg-slate-100 px-1">npm run db:seed</code> then log in as admin@gvkss.local / admin123
+      </p>
     </div>
   );
 }

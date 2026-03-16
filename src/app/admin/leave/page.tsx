@@ -10,8 +10,8 @@ const statusColors: Record<string, string> = {
 };
 
 export default async function LeavePage() {
-  await requireAuth();
-
+  const session = await requireAuth();
+  const isAdmin = session.role === "admin";
   const leaves = await getMyLeaves();
 
   return (
@@ -26,7 +26,13 @@ export default async function LeavePage() {
         </Link>
       </div>
 
-      <LeaveForm />
+      {!isAdmin && <LeaveForm />}
+
+      {isAdmin && (
+        <p className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+          Admins do not apply for leave. Use Approve to review and approve leave requests from employees.
+        </p>
+      )}
 
       <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
         <h2 className="border-b border-slate-200 px-5 py-3 font-semibold text-slate-800">

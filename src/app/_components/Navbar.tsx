@@ -27,12 +27,25 @@ export default async function Navbar() {
               <Link href="/admin/employees" className="hover:underline">
                 {session.role === "team-lead" ? "Team" : "Employees"}
               </Link>
-              <Link href="/admin/leave" className="hover:underline">
-                Leave
+              <Link href="/admin/attendance" className="hover:underline">
+                Attendance
               </Link>
+              {session.role !== "admin" && (
+                <Link href="/admin/leave" className="hover:underline">
+                  Leave
+                </Link>
+              )}
               {canApprove && (
                 <Link href="/admin/approve" className="hover:underline">
                   Approve
+                </Link>
+              )}
+              {(session.role === "admin" || session.role === "hr") && (
+                <Link
+                  href="/admin/attendance/report"
+                  className="hover:underline"
+                >
+                  Reports
                 </Link>
               )}
               {session.role === "admin" && (
@@ -43,7 +56,25 @@ export default async function Navbar() {
                   <Link href="/admin/pending" className="hover:underline">
                     Pending
                   </Link>
+                  <Link href="/admin/payroll" className="hover:underline">
+                    Pay slips
+                  </Link>
                 </>
+              )}
+              {session.role !== "admin" && (
+                <Link href="/admin/payroll/me" className="hover:underline">
+                  My pay slips
+                </Link>
+              )}
+              {session.role !== "admin" && (
+                <Link href="/admin/resign" className="hover:underline">
+                  Resign
+                </Link>
+              )}
+              {session.role === "admin" && (
+                <Link href="/admin/resignations" className="hover:underline">
+                  Resignations
+                </Link>
               )}
               <span className="text-slate-300 text-sm">
                 {session.role ?? "employee"}

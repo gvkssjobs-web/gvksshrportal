@@ -6,7 +6,7 @@ interface Props {
   session: UserType;
   employees: (UserType & { departmentName?: string })[];
   allLeaves: LeaveRequest[];
-  myLeaves: LeaveRequest[];
+  myLeaves?: LeaveRequest[];
   pendingRegistrationsCount?: number;
 }
 
@@ -14,11 +14,9 @@ export default function AdminDashboard({
   session,
   employees,
   allLeaves,
-  myLeaves,
   pendingRegistrationsCount = 0,
 }: Props) {
   const pendingAll = allLeaves.filter((l) => l.status === "pending");
-  const pendingMine = myLeaves.filter((l) => l.status === "pending");
 
   return (
     <div className="space-y-8">
@@ -51,16 +49,6 @@ export default function AdminDashboard({
           <p className="mt-1 text-sm text-slate-500">Create, edit, delete teams</p>
         </Link>
         <Link
-          href="/admin/leave"
-          className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-300 hover:shadow"
-        >
-          <h2 className="font-semibold text-slate-800">My leave</h2>
-          <p className="mt-1 text-2xl font-bold text-amber-600">
-            {pendingMine.length} pending
-          </p>
-          <p className="mt-1 text-sm text-slate-500">Apply or view</p>
-        </Link>
-        <Link
           href="/admin/approve"
           className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-300 hover:shadow"
         >
@@ -90,12 +78,6 @@ export default function AdminDashboard({
       <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="font-semibold text-slate-800">Quick actions</h2>
         <div className="mt-3 flex flex-wrap gap-3">
-          <Link
-            href="/admin/leave#apply"
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-          >
-            Apply for leave
-          </Link>
           <Link
             href="/admin/employees"
             className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
