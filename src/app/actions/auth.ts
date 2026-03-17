@@ -67,7 +67,7 @@ export const loginAction = async (formData: FormData) => {
         ? error.message
         : getErrorMessage(error);
     if (message.includes("connect") || message.includes("database"))
-      throw new Error("Database connection failed. Check DATABASE_URL and that PostgreSQL is running.");
+      throw new Error("Database connection failed. Check ORACLE_* env vars and that Oracle is reachable (and wallet if using mTLS).");
     console.error("LOGIN ERROR:", error);
     throw new Error(message);
   }

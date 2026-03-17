@@ -2,7 +2,18 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## GVKSS HR Portal
 
-Role-based HR portal with separate dashboards for **Admin**, **HR**, **Team Lead**, and **Employee**. Uses **PostgreSQL** as the local database (Prisma ORM).
+Role-based HR portal with separate dashboards for **Admin**, **HR**, **Team Lead**, and **Employee**. The app uses **Oracle** (Autonomous DB) via `src/app/_lib/oracle.ts` and a Prisma-shaped API in `_lib/db.ts`. Optional Prisma/PostgreSQL tooling exists for local dev (see Database commands).
+
+### Project structure
+
+- **`src/app/`** — Next.js App Router: routes, `layout.tsx`, `globals.css`
+- **`src/app/_components/`** — Shared UI (Navbar, Footer, forms, dashboards)
+- **`src/app/actions/`** — Server actions (auth, resignation, payroll, hr, attendance)
+- **`src/app/_lib/`** — DB (Oracle), auth, session, utilities
+- **`src/app/_types/`** — Shared TypeScript types
+- **`config/oracle/`** — Oracle wallet and TNS config (see `config/oracle/README.md`); set `ORACLE_WALLET_PATH=./config/oracle` in `.env`
+- **`scripts/`** — Oracle DDL runner (`npm run db:oracle:setup`), see `scripts/ORACLE-WALLET-SETUP.md`
+- **`prisma/`** — Prisma schema (PostgreSQL); generated client goes to `generated/prisma` at project root
 
 ### Setup
 
@@ -34,10 +45,8 @@ Open [http://localhost:3000](http://localhost:3000) and log in. After seeding, u
 
 ### Database commands
 
-- `npm run db:push` — Apply Prisma schema to the database (no migrations).
-- `npm run db:migrate` — Create and run migrations.
-- `npm run db:seed` — Seed departments + initial admin (idempotent).
-- `npm run db:studio` — Open Prisma Studio to view/edit data.
+- **Oracle (production):** `npm run db:oracle:setup` — Run `scripts/oracle-ddl.sql` against your Oracle DB. Requires `.env` with `ORACLE_CONNECT_STRING`, `ORACLE_USER`, `ORACLE_PASSWORD`, and `ORACLE_WALLET_PATH` (e.g. `./config/oracle`). See `scripts/ORACLE-WALLET-SETUP.md`.
+- **Prisma (optional):** `npm run db:push` — Apply Prisma schema (PostgreSQL). `npm run db:migrate` — Migrations. `npm run db:seed` — Seed. `npm run db:studio` — Prisma Studio.
 
 ### Dashboard pages & modules
 

@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "../_lib/db";
+import { runTransaction, runExecuteWithConn } from "../_lib/oracle";
 import { getSession } from "../_lib/session";
 import { revalidatePath } from "next/cache";
 
@@ -94,16 +95,18 @@ export async function approveResignation(resignationId: string) {
   if (resignation.status !== "pending") throw new Error("Request already processed.");
 
   const now = new Date();
-  await prisma.$transaction([
-    prisma.resignation.update({
-      where: { id: resignationId },
-      data: { status: "approved", approvedAt: now },
-    }),
-    prisma.user.update({
-      where: { id: resignation.userId },
-      data: { relievingDate: now },
-    }),
-  ]);
+  await runTransaction(async (conn) => {
+    await runExecuteWithConn(
+      conn,
+      `UPDATE resignations SET "status" = :status, "approvedAt" = :approvedAt WHERE "id" = :id`,
+      { status: "approved", approvedAt: now, id: resignationId }
+    );
+    await runExecuteWithConn(
+      conn,
+      `UPDATE users SET "relievingDate" = :relievingDate WHERE "id" = :id`,
+      { relievingDate: now, id: resignation.userId }
+    );
+  });
   revalidatePath("/admin/resignations");
   revalidatePath("/admin/resign");
   revalidatePath("/admin/employees");
