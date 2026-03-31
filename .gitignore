@@ -24,15 +24,6 @@
 /generated
 /src/generated
 
-# Oracle wallet and keystores (keep in config/oracle, do not commit)
-*.jks
-*.p12
-*.sso
-cwallet.sso
-ewallet.p12
-keystore.jks
-truststore.jks
-
 # misc
 .DS_Store
 *.pem
